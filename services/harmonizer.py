@@ -51,6 +51,7 @@ RÈGLES CRITIQUES :
 2. La valeur associée à chaque clé doit faire partie de la liste "categories".
 3. Ne pas inventer de thèmes d'origine qui ne sont pas dans la liste.
 4. Les noms de catégories macro doivent être clairs, concis (1 à 3 mots) et englobants.
+5. Les noms de catégories macro doivent obligatoirement être rédigés en français.
 """
 
 

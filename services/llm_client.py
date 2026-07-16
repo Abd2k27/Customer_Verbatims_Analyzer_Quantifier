@@ -51,7 +51,7 @@ RÈGLES CRITIQUES :
 4. Le résumé doit être une phrase courte et fidèle au contenu.
 5. Le sentiment doit être EXACTEMENT l'une de ces trois valeurs : "positif", "négatif" ou "neutre".
 6. Ne jamais inventer d'informations absentes du verbatim.
-7. Si le verbatim est dans une langue autre que le français, analyse-le dans sa langue d'origine mais renvoie les champs demandés selon le schéma.
+7. Même si le verbatim d'origine est écrit dans une autre langue que le français (ex: anglais, espagnol, portugais, allemand, néerlandais), tu DOIS obligatoirement rédiger le thème et le résumé EN FRANÇAIS.
 
 Verbatims :
 {lines}

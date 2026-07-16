@@ -2,7 +2,7 @@
 Couche d'ingestion — normalise toute source vers list[VerbatimInput].
 
 Supporte : CSV, JSONL, DataFrames pandas.
-Auto-détection des colonnes texte courantes.
+Auto-détection des colonnes de texte, d'ID, de source et de langue.
 """
 
 import pandas as pd
@@ -12,7 +12,7 @@ from typing import Optional
 from models.schemas import VerbatimInput
 
 
-# Colonnes texte courantes dans les datasets connus
+# Candidats de colonnes courantes dans les datasets connus
 TEXT_COLUMN_CANDIDATES = [
     "text", "review", "review_body", "review_text",
     "content", "comment", "verbatim", "avis",
@@ -20,6 +20,14 @@ TEXT_COLUMN_CANDIDATES = [
 
 ID_COLUMN_CANDIDATES = [
     "id", "review_id", "verbatim_id", "index",
+]
+
+SOURCE_COLUMN_CANDIDATES = [
+    "source", "origin", "platform", "channel", "provenance"
+]
+
+LANG_COLUMN_CANDIDATES = [
+    "lang", "language", "langue"
 ]
 
 
@@ -40,16 +48,7 @@ def load_csv(
     lang: str = "fr",
     limit: Optional[int] = None,
 ) -> list[VerbatimInput]:
-    """Charge un CSV et le normalise en VerbatimInput.
-
-    Args:
-        path: chemin vers le fichier CSV
-        text_col: nom de la colonne texte (auto-détecté si None)
-        id_col: nom de la colonne ID (généré si None)
-        source: label de traçabilité
-        lang: langue par défaut
-        limit: nombre max de verbatims à charger
-    """
+    """Charge un CSV et le normalise en VerbatimInput."""
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Fichier introuvable: {path}")
@@ -75,6 +74,14 @@ def load_csv(
     if id_col:
         print(f"   Colonne ID: '{id_col}'")
 
+    # Auto-détection des colonnes métadonnées (source & lang)
+    source_col = _detect_column(df, SOURCE_COLUMN_CANDIDATES)
+    lang_col = _detect_column(df, LANG_COLUMN_CANDIDATES)
+    if source_col:
+        print(f"   Colonne source détectée: '{source_col}'")
+    if lang_col:
+        print(f"   Colonne langue détectée: '{lang_col}'")
+
     # Conversion en VerbatimInput
     verbatims = []
     for idx, row in df.iterrows():
@@ -83,11 +90,14 @@ def load_csv(
             continue
 
         vid = str(row[id_col]) if id_col else f"{source}_{idx}"
+        row_source = str(row[source_col]).strip() if source_col and pd.notna(row[source_col]) else source
+        row_lang = str(row[lang_col]).strip() if lang_col and pd.notna(row[lang_col]) else lang
+
         verbatims.append(VerbatimInput(
             id=vid,
             text=text,
-            source=source,
-            lang=lang,
+            source=row_source,
+            lang=row_lang,
         ))
 
     print(f"   ✅ {len(verbatims)} verbatims valides (sur {len(df)} lignes)")
@@ -110,6 +120,10 @@ def load_jsonl(
     df = pd.read_json(path, lines=True, nrows=limit)
     print(f"📂 Chargé {len(df)} lignes depuis {path.name}")
 
+    # Auto-détections
+    source_col = _detect_column(df, SOURCE_COLUMN_CANDIDATES)
+    lang_col = _detect_column(df, LANG_COLUMN_CANDIDATES)
+
     verbatims = []
     for idx, row in df.iterrows():
         text = str(row.get(text_field, "")).strip()
@@ -117,11 +131,14 @@ def load_jsonl(
             continue
 
         vid = str(row.get(id_field, f"{source}_{idx}"))
+        row_source = str(row[source_col]).strip() if source_col and pd.notna(row[source_col]) else source
+        row_lang = str(row[lang_col]).strip() if lang_col and pd.notna(row[lang_col]) else lang
+
         verbatims.append(VerbatimInput(
             id=vid,
             text=text,
-            source=source,
-            lang=lang,
+            source=row_source,
+            lang=row_lang,
         ))
 
     print(f"   ✅ {len(verbatims)} verbatims valides")
@@ -140,6 +157,10 @@ def from_dataframe(
     if limit:
         df = df.head(limit)
 
+    # Auto-détections des colonnes métadonnées
+    source_col = _detect_column(df, SOURCE_COLUMN_CANDIDATES)
+    lang_col = _detect_column(df, LANG_COLUMN_CANDIDATES)
+
     verbatims = []
     for idx, row in df.iterrows():
         text = str(row[text_col]).strip()
@@ -147,11 +168,14 @@ def from_dataframe(
             continue
 
         vid = str(row[id_col]) if id_col else f"{source}_{idx}"
+        row_source = str(row[source_col]).strip() if source_col and pd.notna(row[source_col]) else source
+        row_lang = str(row[lang_col]).strip() if lang_col and pd.notna(row[lang_col]) else lang
+
         verbatims.append(VerbatimInput(
             id=vid,
             text=text,
-            source=source,
-            lang=lang,
+            source=row_source,
+            lang=row_lang,
         ))
 
     print(f"   ✅ {len(verbatims)} verbatims depuis DataFrame")
