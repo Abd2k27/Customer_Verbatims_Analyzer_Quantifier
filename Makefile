@@ -1,4 +1,4 @@
-.PHONY: help test run clean clean-cache clean-checkpoints clean-results clean-all download quantify streamlit
+.PHONY: help test run clean clean-cache clean-checkpoints clean-results clean-all download quantify streamlit generate-multilingual
 
 # === Configuration ===
 PYTHON := python3
@@ -26,6 +26,9 @@ quantify: ## Lance l'harmonisation et la quantification (INPUT=...)
 
 streamlit: ## Lance l'interface web Streamlit
 	streamlit run app.py
+
+generate-multilingual: ## Génère un dataset de test multilingue de 500 verbatims (EN, FR, ES, PT, DE, BE)
+	$(PYTHON) scripts/generate_multilingual_dataset.py
 
 download: ## Télécharge les datasets (DATASET=test|allocine|bank|amazon|all LIMIT=...)
 	$(PYTHON) scripts/download_datasets.py --dataset $(DATASET) --limit $(LIMIT)
