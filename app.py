@@ -166,11 +166,27 @@ with st.sidebar:
     # Ollama Credentials
     st.subheader("Ollama Cloud API")
     env_url = st.text_input("URL Ollama Endpoint", value=st.session_state["OLLAMA_URL"])
-    env_key = st.text_input("Ollama API Key / Bearer Token", value=st.session_state["OLLAMA_API_KEY"], type="password")
+    
+    # Sécurisation de l'affichage de l'API key
+    has_key_in_env = bool(os.getenv("OLLAMA_API_KEY")) or bool(st.session_state.get("OLLAMA_API_KEY"))
+    placeholder_text = "🔒 Déjà configurée en tâche de fond (Secrets/Env)" if has_key_in_env else "Saisir la clé d'API..."
+    
+    env_key_input = st.text_input(
+        "Ollama API Key / Bearer Token",
+        value="", 
+        type="password",
+        placeholder=placeholder_text,
+        help="Laissez vide pour utiliser la clé déjà configurée dans vos secrets Streamlit ou le fichier .env."
+    )
+    
+    # Utiliser la clé saisie par l'utilisateur si présente, sinon celle en mémoire/env
+    env_key = env_key_input if env_key_input else st.session_state.get("OLLAMA_API_KEY", "")
+    
     env_model = st.text_input("Modèle", value=st.session_state["OLLAMA_MODEL"])
 
     if st.button("Sauvegarder Configuration", width="stretch"):
-        save_env_keys(env_url, env_key, env_model)
+        final_key = env_key_input if env_key_input else st.session_state.get("OLLAMA_API_KEY", "")
+        save_env_keys(env_url, final_key, env_model)
         st.success("Configuration enregistrée !")
 
     st.markdown("---")
