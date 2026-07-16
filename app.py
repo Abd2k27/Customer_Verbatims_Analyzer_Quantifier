@@ -359,13 +359,33 @@ with tabs[1]:
         # Convertir en DataFrame pour l'UI
         df_results = pd.DataFrame([r.model_dump() for r in raw_analyses])
         
-        # Charger et mapper le texte original et la source
+        # Charger et mapper le texte original et la source (avec fallback s'ils ne sont pas déjà présents dans le fichier de résultats)
         raw_meta = load_all_raw_metadata()
         if not df_results.empty:
-            df_results["texte_original"] = df_results["verbatim_id"].apply(lambda vid: raw_meta.get(vid, {}).get("text", "(Texte original introuvable)"))
-            df_results["source"] = df_results["verbatim_id"].apply(lambda vid: raw_meta.get(vid, {}).get("source", "inconnue"))
+            # Remplir le texte original si manquant ou vide
+            if "texte_original" not in df_results.columns or df_results["texte_original"].isna().all() or (df_results["texte_original"] == "").all():
+                df_results["texte_original"] = df_results["verbatim_id"].apply(lambda vid: raw_meta.get(vid, {}).get("text", "(Texte original introuvable)"))
+            else:
+                df_results["texte_original"] = df_results.apply(
+                    lambda row: row["texte_original"] if pd.notna(row["texte_original"]) and row["texte_original"] != ""
+                    else raw_meta.get(row["verbatim_id"], {}).get("text", "(Texte original introuvable)"),
+                    axis=1
+                )
+            
+            # Remplir la source si manquante ou inconnue
+            if "source" not in df_results.columns or df_results["source"].isna().all() or (df_results["source"] == "inconnue").all():
+                df_results["source"] = df_results["verbatim_id"].apply(lambda vid: raw_meta.get(vid, {}).get("source", "inconnue"))
+            else:
+                df_results["source"] = df_results.apply(
+                    lambda row: row["source"] if pd.notna(row["source"]) and row["source"] != "inconnue"
+                    else raw_meta.get(row["verbatim_id"], {}).get("source", "inconnue"),
+                    axis=1
+                )
+
             # Réordonner
             cols_order = ["verbatim_id", "source", "texte_original", "theme", "summary", "sentiment"]
+            if "macro_theme" in df_results.columns:
+                cols_order.insert(3, "macro_theme")
             cols_order = [c for c in cols_order if c in df_results.columns]
             df_results = df_results[cols_order]
 

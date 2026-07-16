@@ -7,7 +7,7 @@ Contrat de données non-négociable : tout le pipeline respecte ces schémas.
 from pydantic import BaseModel, Field
 
 
-from typing import Literal
+from typing import Literal, Optional
 
 
 class VerbatimInput(BaseModel):
@@ -31,6 +31,9 @@ class VerbatimAnalysis(BaseModel):
     sentiment: Literal["positif", "négatif", "neutre"] = Field(
         description="Sentiment associé au verbatim : positif, négatif, ou neutre"
     )
+    texte_original: Optional[str] = Field(default=None, description="Texte original du verbatim")
+    source: Optional[str] = Field(default=None, description="Source d'origine du verbatim")
+    macro_theme: Optional[str] = Field(default=None, description="Catégorie macro après harmonisation")
 
 
 class BatchAnalysisResult(BaseModel):

@@ -125,6 +125,14 @@ class PipelineOrchestrator:
                 valid, errors = validate_batch_result(result, batch)
 
                 if valid:
+                    # Enrichir les analyses avec le texte original et la source d'origine
+                    inputs_by_id = {v.id: v for v in batch}
+                    for analysis in valid:
+                        v_in = inputs_by_id.get(analysis.verbatim_id)
+                        if v_in:
+                            analysis.texte_original = v_in.text
+                            analysis.source = v_in.source
+                    
                     all_results.extend(valid)
                     append_results(valid, output_path)
                     print(f"  ✅ {len(valid)} analyses valides")
