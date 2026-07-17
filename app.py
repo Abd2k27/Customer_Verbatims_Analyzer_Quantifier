@@ -20,6 +20,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config.settings import RAW_DIR, PROCESSED_DIR
+from models.schemas import VerbatimAnalysis
 from pipeline.ingestion import from_dataframe
 from pipeline.orchestrator import PipelineOrchestrator
 from pipeline.persistence import load_results
