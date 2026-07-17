@@ -1,8 +1,25 @@
 # 🤖 Analyseur et Quantificateur de Verbatims Clients
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://customerverbatimsanalyzerquantifier-a9rrjkplmzgmxvj4bojxxk.streamlit.app/)
+
 Ce projet est un pipeline complet, performant et modulaire pour ingérer des commentaires clients (verbatims), en extraire des informations structurées (thématique principale, résumé, sentiment), harmoniser sémantiquement les thèmes libres, et en extraire des taux statistiques quantifiés.
 
 Le pipeline fonctionne de manière asynchrone et effectue des appels à un modèle **Gemma 4** distant hébergé sur **Ollama Cloud** (via authentification Bearer token).
+
+👉 **[Tester l'application en ligne sur Streamlit Cloud](https://customerverbatimsanalyzerquantifier-a9rrjkplmzgmxvj4bojxxk.streamlit.app/)**
+
+---
+
+## 📸 Aperçu de l'Application
+
+### 1. Ingestion et Lancement de l'Analyse
+![Chargement et analyse des données](docs/1.png)
+
+### 2. Tableau de Bord et Visualisations Plotly
+![Visualisation et statistiques de sentiments](docs/2.png)
+
+### 3. Synthèse Qualitative par Macro-Catégorie
+![Synthèse automatique LLM par service](docs/3.png)
 
 ---
 
