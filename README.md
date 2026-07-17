@@ -9,7 +9,7 @@ Le pipeline fonctionne de manière asynchrone et effectue des appels à un modè
 ## 📁 Architecture du Projet
 
 ```
-Locked/
+Customer_Verbatims_Analyzer_Quantifier/
 ├── .env                           # Fichier de configuration contenant les tokens et les clés (gitignored)
 ├── .env.example                   # Modèle de variables d'environnement
 ├── .gitignore                     # Protection des secrets et des fichiers générés
@@ -41,6 +41,7 @@ Locked/
 │   ├── download_datasets.py       # Téléchargement et préparation de datasets de test depuis HuggingFace
 │   ├── run_pipeline.py            # Point d'entrée principal en ligne de commande (CLI)
 │   └── quantify.py                # Script CLI d'harmonisation et de quantification
+│   └── generate_multilingual_dataset.py # Générateur de dataset de test multilingue [NOUVEAU]
 │
 └── data/                          # Dossier de stockage des données (créé automatiquement)
     ├── raw/                       # Fichiers sources bruts (.csv)
@@ -53,12 +54,12 @@ Locked/
 ## ⚙️ Explication par Fonctionnalité et Fonctions Codées
 
 ### 1. Ingestion et Normalisation (`pipeline/ingestion.py`)
-Ce module convertit n'importe quel fichier de commentaires en une liste standardisée d'objets `VerbatimInput` avec détection automatique de colonnes.
+Ce module convertit n'importe quel fichier de commentaires en une liste standardisée d'objets `VerbatimInput` avec détection automatique de colonnes (texte, ID, source, langue).
 
-*   `_detect_column(df, candidates)`: Recherche s'il existe une correspondance insensible à la casse entre les colonnes du fichier et des mots-clés typiques de texte ou d'ID (ex: `review`, `comment`, `id`, `index`).
-*   `load_csv(path, text_col, id_col, source, lang, limit)`: Charge un fichier CSV via pandas, applique l'auto-détection des colonnes, nettoie les lignes vides, génère des identifiants uniques si aucun ID n'est détecté (`{source}_{index}`) et retourne une liste de `VerbatimInput`.
+*   `_detect_column(df, candidates)`: Recherche s'il existe une correspondance insensible à la casse entre les colonnes du fichier et des candidats typiques (ex: `review`, `comment` pour le texte; `source`, `platform` pour la source).
+*   `load_csv(path, text_col, id_col, source, lang, limit)`: Charge un fichier CSV, applique l'auto-détection pour toutes les colonnes clés (y compris `source` et `lang` si présentes dans le CSV), et retourne une liste de `VerbatimInput`.
 *   `load_jsonl(...)`: Même logique que pour le CSV, mais pour les fichiers JSON Lines.
-*   `from_dataframe(...)`: Convertit directement un DataFrame pandas chargé en mémoire en liste de `VerbatimInput`.
+*   `from_dataframe(...)`: Convertit directement un DataFrame pandas chargé en mémoire (par exemple via Streamlit) en liste de `VerbatimInput` en extrayant dynamiquement le texte, l'ID, la source et la langue.
 
 ---
 
@@ -92,7 +93,9 @@ L'orchestrateur découpe les données, suit la progression sur le disque et gèr
 *   `PipelineOrchestrator.run(verbatims, output_path, resume, on_progress)`:
     -   Découpe la liste en lots de taille `batch_size`.
     -   Si `resume=True`, l'orchestrateur regarde le checkpoint et saute les lots déjà analysés.
-    -   Pour chaque lot, il appelle le client LLM et le validateur, écrit les résultats valides en mode *append* sur le disque et met à jour le checkpoint.
+    -   Pour chaque lot, il appelle le client LLM et le validateur.
+    -   **Enrichissement à la volée** : Il injecte directement le texte d'origine (`texte_original`) et la source d'origine (`source`) de chaque verbatim dans les résultats d'analyses validés avant de les enregistrer (évite les jointures de fichiers distants).
+    -   Écrit ces résultats enrichis en mode *append* sur le disque et met à jour le checkpoint.
     -   En cas d'échec persistant d'un lot (retries épuisés), il logue l'échec et passe au lot suivant **sans** le marquer comme complété pour permettre de le rejouer plus tard.
     -   Déclenche un callback `on_progress` après chaque lot pour notifier l'interface graphique Streamlit.
 
@@ -101,7 +104,7 @@ L'orchestrateur découpe les données, suit la progression sur le disque et gèr
 ### 5. Harmonisation Sémantique (`services/harmonizer.py`)
 Pour agréger et quantifier proprement, cette classe réduit la liste des thèmes libres uniques en un nombre restreint de thèmes harmonisés.
 
-*   `build_harmonization_prompt(unique_themes, max_categories)`: Demande au LLM de concevoir jusqu'à `N` macro-catégories à partir d'une liste brute de thèmes uniques et de renvoyer un mapping structuré.
+*   `build_harmonization_prompt(unique_themes, max_categories)`: Demande au LLM de concevoir jusqu'à `N` macro-catégories à partir d'une liste brute de thèmes uniques et de renvoyer un mapping structuré rédigé obligatoirement en français.
 *   `ThemeHarmonizer.harmonize(unique_themes, max_categories)`: Envoie les thèmes bruts au modèle, valide la réponse sous forme de dictionnaire de mapping `{thème_libre: macro_catégorie}`, et gère un fallback automatique vers une catégorie "Autre" pour les thèmes oubliés.
 
 ---
@@ -117,9 +120,11 @@ Calcul des statistiques de sentiment et mise en forme des rapports.
 ### 7. Interface Web Streamlit (`app.py`)
 L'application unifie l'ensemble des modules dans un tableau de bord réactif.
 
-*   `load_all_raw_metadata()`: Scanne dynamiquement tous les fichiers CSV bruts de `data/raw/` pour charger le texte original ainsi que le nom du fichier d'origine (la source) indexés par `verbatim_id`.
-*   **Logique de filtrage dynamique** : Permet de filtrer l'ensemble du tableau de bord et des visualisations (Donut Plotly de sentiment global, Bar Chart Plotly de distribution par thème) par **Source**, recalculant à la volée toutes les métriques en mémoire de manière instantanée.
+*   `load_all_raw_metadata()` : Scanne localement le dossier `data/raw/` pour y charger le texte et la source d'origine de chaque verbatim en cas de rétrocompatibilité avec d'anciens fichiers d'analyse.
+*   **Affichage direct du texte et de la source** : L'interface extrait directement le texte et la source stockés dans le fichier de résultats `.jsonl`.
+*   **Logique de filtrage dynamique** : Permet de filtrer l'ensemble du dashboard (KPIs métriques, graphique Donut Plotly de sentiment global, graphique barres Plotly cumulées) par **Source** en temps réel.
 *   **Visualiseur filtrable multi-critères** : Tableaux Streamlit avec recherche textuelle intégrée et filtres par Source, Thème Macro, et Sentiment.
+*   **Masquage de sécurité** : Masque le token d'API Ollama Cloud dans l'interface et utilise de manière sécurisée un placeholder si ce dernier est déjà présent dans les variables système ou secrets de Streamlit Cloud.
 
 ---
 
