@@ -25,6 +25,7 @@ from pipeline.orchestrator import PipelineOrchestrator
 from pipeline.persistence import load_results
 from services.llm_client import OllamaClient
 from services.harmonizer import ThemeHarmonizer
+from services.synthesizer import CategorySynthesizer
 
 # Helper pour charger les métadonnées des verbatims (texte et source)
 def load_all_raw_metadata():
@@ -565,6 +566,92 @@ with tabs[1]:
                             st.info("Catégories macro non disponibles.")
                 else:
                     st.warning("Aucune donnée disponible pour les filtres sélectionnés.")
+
+                # 3. Synthèse Qualitative par Macro-Catégorie
+                st.markdown("---")
+                st.header("🧠 SYNTHÈSE QUALITATIVE PAR MACRO-CATÉGORIE")
+                st.markdown("Analyse automatique par LLM des forces et irritants pour chaque service.")
+
+                # Initialiser le dictionnaire des synthèses si absent
+                if "syntheses" not in report_data:
+                    report_data["syntheses"] = {}
+
+                # Trouver les catégories disponibles
+                macro_themes_list = sorted(list(report_data["theme_distribution"].keys()))
+
+                # Proposer de générer ou régénérer les synthèses
+                gen_col1, gen_col2 = st.columns([3, 1])
+                with gen_col1:
+                    st.info("La génération de la synthèse qualitative par le LLM prend environ 10 à 20 secondes.")
+                with gen_col2:
+                    generate_synthesis = st.button("🧠 Générer la Synthèse", type="primary", key="btn_gen_synth", width="stretch")
+
+                if generate_synthesis:
+                    syntheses_temp = {}
+                    progress_bar_synth = st.progress(0)
+                    status_synth = st.empty()
+                    
+                    # Filtrer les analyses valides de ce run_id
+                    client = OllamaClient(model=env_model, url=env_url, api_key=env_key)
+                    synthesizer = CategorySynthesizer(client=client)
+                    
+                    for idx, cat in enumerate(macro_themes_list):
+                        status_synth.write(f"Analyse en cours pour la catégorie **{cat}**...")
+                        # Filtrer les analyses correspondantes
+                        cat_analyses = [
+                            VerbatimAnalysis(
+                                verbatim_id=row["verbatim_id"],
+                                theme=row["theme"],
+                                summary=row["summary"],
+                                sentiment=row["sentiment"]
+                            )
+                            for _, row in df_results[df_results["macro_theme"] == cat].iterrows()
+                        ]
+                        
+                        try:
+                            synth = asyncio.run(synthesizer.synthesize(cat, cat_analyses))
+                            syntheses_temp[cat] = synth.model_dump()
+                        except Exception as e:
+                            st.error(f"Erreur lors de la synthèse de {cat} : {e}")
+                            
+                        progress_bar_synth.progress((idx + 1) / len(macro_themes_list))
+                    
+                    status_synth.empty()
+                    progress_bar_synth.empty()
+                    
+                    # Enregistrer dans le rapport
+                    report_data["syntheses"] = syntheses_temp
+                    with open(report_file_path, "w", encoding="utf-8") as f:
+                        json.dump(report_data, f, indent=2, ensure_ascii=False)
+                    st.success("Synthèse qualitative générée avec succès !")
+                    st.rerun()
+
+                # Afficher les synthèses si elles existent
+                if report_data.get("syntheses"):
+                    for cat in macro_themes_list:
+                        synth_item = report_data["syntheses"].get(cat)
+                        if synth_item:
+                            with st.expander(f"🔹 {cat} — Synthèse qualitative", expanded=True):
+                                st.markdown(f"**Synthèse globale :** *{synth_item.get('global_synthesis')}*")
+                                c_pos, c_neg = st.columns(2)
+                                with c_pos:
+                                    st.markdown("##### 🟢 Points de Satisfaction / Forces")
+                                    pos_list = synth_item.get("positive_points", [])
+                                    if pos_list:
+                                        for pt in pos_list:
+                                            st.markdown(f"- {pt}")
+                                    else:
+                                        st.markdown("*Aucun point fort récurrent détecté.*")
+                                with c_neg:
+                                    st.markdown("##### 🔴 Points d'Insatisfaction / Irritants")
+                                    neg_list = synth_item.get("negative_points", [])
+                                    if neg_list:
+                                        for pt in neg_list:
+                                            st.markdown(f"- {pt}")
+                                    else:
+                                        st.markdown("*Aucun irritant majeur détecté.*")
+                else:
+                    st.warning("Aucune synthèse générée pour le moment. Veuillez cliquer sur le bouton ci-dessus pour la lancer.")
 
                 # 3. Explorateur filtrable
                 st.markdown("### 🔎 Explorateur de Verbatims")

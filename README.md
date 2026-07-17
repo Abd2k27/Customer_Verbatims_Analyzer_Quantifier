@@ -109,7 +109,15 @@ Pour agréger et quantifier proprement, cette classe réduit la liste des thème
 
 ---
 
-### 6. Quantification et Export (`scripts/quantify.py`)
+### 6. Synthèse Qualitative (`services/synthesizer.py`) [NOUVEAU]
+Ce service produit des synthèses sémantiques résumant les forces et les faiblesses des retours clients pour chaque grande thématique macro.
+
+*   `build_synthesis_prompt(macro_theme, reviews)`: Génère le prompt LLM en lui passant la liste compacte des couples `[sentiment] résumé` pour la catégorie concernée afin d'être optimal en termes de coûts/tokens. Il lui dicte de produire un JSON contenant les points forts (`positive_points`), les irritants (`negative_points`) et un paragraphe de synthèse (`global_synthesis`) rédigé en français.
+*   `CategorySynthesizer.synthesize(macro_theme, analyses)`: Appelle l'API Ollama Cloud de façon asynchrone, extrait la réponse et valide l'objet final sous forme de `CategorySynthesis`.
+
+---
+
+### 7. Quantification et Export (`scripts/quantify.py`)
 Calcul des statistiques de sentiment et mise en forme des rapports.
 
 *   `display_report(...)`: Affiche un rapport complet dans le terminal sous forme de graphiques en barres horizontales.
@@ -117,12 +125,13 @@ Calcul des statistiques de sentiment et mise en forme des rapports.
 
 ---
 
-### 7. Interface Web Streamlit (`app.py`)
+### 8. Interface Web Streamlit (`app.py`)
 L'application unifie l'ensemble des modules dans un tableau de bord réactif.
 
 *   `load_all_raw_metadata()` : Scanne localement le dossier `data/raw/` pour y charger le texte et la source d'origine de chaque verbatim en cas de rétrocompatibilité avec d'anciens fichiers d'analyse.
 *   **Affichage direct du texte et de la source** : L'interface extrait directement le texte et la source stockés dans le fichier de résultats `.jsonl`.
 *   **Logique de filtrage dynamique** : Permet de filtrer l'ensemble du dashboard (KPIs métriques, graphique Donut Plotly de sentiment global, graphique barres Plotly cumulées) par **Source** en temps réel.
+*   **Génération interactive des synthèses** : Propose un bouton à la demande pour synthétiser les avis par catégorie. Les résultats générés (points forts, irritants, résumé global) sont intégrés dans le rapport JSON pour ne pas avoir à les recalculer.
 *   **Visualiseur filtrable multi-critères** : Tableaux Streamlit avec recherche textuelle intégrée et filtres par Source, Thème Macro, et Sentiment.
 *   **Masquage de sécurité** : Masque le token d'API Ollama Cloud dans l'interface et utilise de manière sécurisée un placeholder si ce dernier est déjà présent dans les variables système ou secrets de Streamlit Cloud.
 

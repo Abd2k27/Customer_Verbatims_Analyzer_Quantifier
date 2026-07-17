@@ -39,3 +39,17 @@ class VerbatimAnalysis(BaseModel):
 class BatchAnalysisResult(BaseModel):
     """Résultat d'analyse d'un batch de verbatims."""
     analyses: list[VerbatimAnalysis]
+
+
+class CategorySynthesis(BaseModel):
+    """Synthèse qualitative par macro-catégorie."""
+    macro_theme: str
+    positive_points: list[str] = Field(
+        description="Liste des points de satisfaction récurrents (2 à 5 points)"
+    )
+    negative_points: list[str] = Field(
+        description="Liste des points d'insatisfaction ou d'irritants récurrents (2 à 5 points)"
+    )
+    global_synthesis: str = Field(
+        description="Résumé synthétique rédigé en français (2 à 4 phrases)"
+    )
